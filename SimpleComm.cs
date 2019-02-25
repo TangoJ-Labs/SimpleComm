@@ -9,21 +9,51 @@ namespace SimpleComm
     {
         public string Listen(string serverIp, int port)
         {
-            // Listen at the specified IP and PORT
-            IPAddress ipaddress = IPAddress.Parse(serverIp);
-            TcpListener listener = new TcpListener(ipaddress, port);
-            Console.WriteLine("Listening...");
-            listener.Start();
+            TcpListener listener = null;
+            try
+            {
+                // Listen at the specified IP and PORT
+                IPAddress localAddr = IPAddress.Parse(serverIp);
+                listener = new TcpListener(localAddr, port);
+                listener.Start();
+                    
+                // Buffer for reading data
+                Byte[] bytes = new Byte[256];
 
-            // Accept the client connection and get the sent command
-            TcpClient client = listener.AcceptTcpClient();
-            NetworkStream nwStream = client.GetStream();
-            byte[] buffer = new byte[client.ReceiveBufferSize];
-            int bytesRead = nwStream.Read(buffer, 0, client.ReceiveBufferSize);
+                // Enter the listening loop.
+                while(true) 
+                {
+                    // Perform a blocking call to accept requests.
+                    // You could also user listener.AcceptSocket() here.
+                    TcpClient client = listener.AcceptTcpClient();            
 
-            // Convert the sent command and return
-            string command = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-            return command;
+                    // Get a stream object for reading and writing
+                    NetworkStream stream = client.GetStream();
+
+                    int i;
+
+                    // Loop to receive all the data sent by the client.
+                    while((i = stream.Read(bytes, 0, bytes.Length))!=0) 
+                    {   
+                        // Convert the sent command and exit
+                        string command = System.Text.Encoding.ASCII.GetString(bytes, 0, i);
+                        return command;
+                    }
+                    
+                    // Shutdown and end connection
+                    client.Close();
+                }
+            }
+            catch(SocketException e)
+            {
+                Console.WriteLine("SocketException: {0}", e);
+                return "ERROR";
+            }
+            finally
+            {
+                // Stop listening for new clients.
+                listener.Stop();
+            }
         }
     }
 
